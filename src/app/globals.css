@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --muted: #475569;
+  --accent: #1d4ed8;
+  --border: #e2e8f0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --background: #050a1f;
+    --foreground: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #60a5fa;
+    --border: #1e293b;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #eef2ff, var(--background));
+  color: var(--foreground);
+  font-family: var(--font-geist-sans, "Inter", system-ui, sans-serif);
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-accent);
+}
+
+button {
+  font-family: inherit;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+.glass-panel {
+  backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--background) 85%, transparent);
+}
