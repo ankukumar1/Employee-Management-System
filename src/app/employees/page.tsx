@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { EmployeeTable } from "@/components/EmployeeTable/EmployeeTable";
+import { EmployeeTable } from "@/components/Employee/EmployeeTable/EmployeeTable";
 import { getEmployees } from "@/lib/employees";
 
 export const metadata: Metadata = {

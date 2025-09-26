@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import type { Employee, EmploymentStatus } from "@/lib/employees";
 import { EmployeeStatusCard } from "../EmployeeStatusCard/EmployeeStatusCard";
+import { EmployeePreviewModal } from "../EmployeePreviewModal/EmployeePreviewModal";
+import { EmployeeFormModal } from "../EmployeeFormModal/EmployeeFormModal";
+import { EmployeeDocumentsModal } from "../EmployeeDocumentsModal/EmployeeDocumentsModal";
+import { EmployeeHistoryModal } from "../EmployeeHistoryModal/EmployeeHistoryModal";
 
 interface EmployeeTableProps {
   employees: Employee[];
@@ -14,12 +18,28 @@ const STATUS_COLORS: Record<EmploymentStatus, string> = {
   Terminated: "#ef4444",
 };
 
+const STATUS_BADGE_STYLES: Record<EmploymentStatus, string> = {
+  Active:
+    "border border-blue-500/20 bg-blue-500/10 text-blue-600 shadow-[0_8px_20px_-12px_rgba(37,99,235,0.4)]",
+  "On Leave":
+    "border border-amber-400/30 bg-amber-400/10 text-amber-600 shadow-[0_8px_20px_-12px_rgba(245,158,11,0.45)]",
+  Terminated:
+    "border border-rose-500/30 bg-rose-500/10 text-rose-500 shadow-[0_8px_20px_-12px_rgba(244,63,94,0.5)]",
+};
+
 const STATUS_OPTIONS: EmploymentStatus[] = ["Active", "On Leave", "Terminated"];
 
 export function EmployeeTable({ employees }: EmployeeTableProps) {
   const [statusFilter, setStatusFilter] = useState<EmploymentStatus | "All">("All");
   const [departmentFilter, setDepartmentFilter] = useState<string>("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [formInitialValues, setFormInitialValues] = useState<Partial<Employee> | null>(null);
+  const [previewEmployee, setPreviewEmployee] = useState<Employee | null>(null);
+  const [documentsEmployee, setDocumentsEmployee] = useState<Employee | null>(null);
+  const [historyEmployee, setHistoryEmployee] = useState<Employee | null>(null);
+  const [menuEmployeeId, setMenuEmployeeId] = useState<string | null>(null);
 
   const departmentOptions = useMemo(() => {
     const uniqueDepartments = Array.from(new Set(employees.map((employee) => employee.department))).sort(
@@ -73,6 +93,59 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
       ? `Showing all ${totalEmployees} employees`
       : `Showing ${filteredEmployeeCount} of ${totalEmployees} employees`;
 
+  const departmentChoices = useMemo(
+    () => departmentOptions.filter((option) => option !== "All"),
+    [departmentOptions]
+  );
+
+  const handleOpenCreateForm = () => {
+    setFormMode("create");
+    setFormInitialValues(null);
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setFormInitialValues(null);
+    setFormMode("create");
+  };
+
+  const handleSubmitForm = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(formData.entries());
+    console.info(
+      formMode === "edit" ? "Update employee submission" : "New employee submission",
+      payload
+    );
+    handleCloseForm();
+  };
+
+  const handleEditEmployee = (employee: Employee) => {
+    setPreviewEmployee(null);
+    setFormMode("edit");
+    setFormInitialValues(employee);
+    setIsFormOpen(true);
+  };
+
+  const handleViewDocuments = (employee: Employee) => {
+    setPreviewEmployee(null);
+    setDocumentsEmployee(employee);
+  };
+
+  const handleCloseDocuments = () => {
+    setDocumentsEmployee(null);
+  };
+
+  const handleViewHistory = (employee: Employee) => {
+    setPreviewEmployee(null);
+    setHistoryEmployee(employee);
+  };
+
+  const handleCloseHistory = () => {
+    setHistoryEmployee(null);
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <section className="grid gap-4 md:grid-cols-3">
@@ -97,6 +170,7 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
             </div>
             <button
               type="button"
+              onClick={handleOpenCreateForm}
               className="inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200"
             >
               + Add Employee
@@ -154,7 +228,8 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
               {filteredEmployees.map((employee) => (
                 <article
                   key={employee.id}
-                  className="group flex h-full flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                  className="group relative flex h-full flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
+                  onMouseLeave={() => setMenuEmployeeId((current) => (current === employee.id ? null : current))}
                 >
                   <header className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
@@ -166,15 +241,55 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
                         <p className="text-sm text-slate-500">{employee.role}</p>
                       </div>
                     </div>
-                    <span
-                      className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold"
-                      style={{
-                        backgroundColor: `${STATUS_COLORS[employee.status]}22`,
-                        color: STATUS_COLORS[employee.status],
-                      }}
-                    >
-                      {employee.status}
-                    </span>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className={`flex h-8 w-8 items-center justify-center rounded-full border border-slate-200/0 text-slate-400 transition hover:border-slate-200/80 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-200 ${
+                          menuEmployeeId === employee.id ? "border-slate-200/80 bg-slate-100 text-slate-600" : ""
+                        }`}
+                        onClick={() =>
+                          setMenuEmployeeId((current) => (current === employee.id ? null : employee.id))
+                        }
+                        aria-haspopup="menu"
+                        aria-expanded={menuEmployeeId === employee.id}
+                      >
+                        <svg viewBox="0 0 20 20" className="h-5 w-5" fill="currentColor">
+                          <circle cx="4" cy="10" r="1.5" />
+                          <circle cx="10" cy="10" r="1.5" />
+                          <circle cx="16" cy="10" r="1.5" />
+                        </svg>
+                      </button>
+                      {menuEmployeeId === employee.id && (
+                        <div className="absolute right-0 top-10 z-20 w-40 rounded-2xl border border-slate-200 bg-white p-2 text-sm font-medium text-slate-600 shadow-lg">
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-slate-600 transition hover:bg-blue-50 hover:text-blue-600"
+                            onClick={() => {
+                              handleEditEmployee(employee);
+                              setMenuEmployeeId(null);
+                            }}
+                          >
+                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor">
+                              <path d="M4 13.5V16h2.5l7.374-7.374-2.5-2.5L4 13.5zm9.793-7.793l-1.5-1.5a1 1 0 00-1.414 0L9.586 5.5l2.5 2.5 1.707-1.707a1 1 0 000-1.414z" />
+                            </svg>
+                            Update
+                          </button>
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-red-500 transition hover:bg-red-50 hover:text-red-600"
+                            onClick={() => {
+                              console.info("Delete employee", employee.id);
+                              setMenuEmployeeId(null);
+                            }}
+                          >
+                            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor">
+                              <path d="M7 3a2 2 0 00-2 2v1H3v2h1v7a2 2 0 002 2h8a2 2 0 002-2v-7h1V6h-2V5a2 2 0 00-2-2H7zm0 3V5h6v1H7zm1 4h2v5H8V10zm4 0h-2v5h2V10z" />
+                            </svg>
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </header>
 
                   <div className="flex flex-col gap-2 text-sm text-slate-600">
@@ -200,7 +315,7 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
                     </p>
                   </div>
 
-                  <footer className="mt-auto flex items-center justify-between gap-3 text-xs text-slate-500">
+                  <footer className="mt-auto flex flex-col gap-3 text-xs text-slate-500">
                     <span>
                       Hired on
                       {" "}
@@ -210,12 +325,20 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
                         day: "numeric",
                       })}
                     </span>
-                    <button
-                      type="button"
-                      className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-blue-500 hover:text-blue-600"
-                    >
-                      Preview
-                    </button>
+                    <div className="flex items-center justify-between gap-3">
+                      <span
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide whitespace-nowrap transition ${STATUS_BADGE_STYLES[employee.status]}`}
+                      >
+                        {employee.status}
+                      </span>
+                      <button
+                        type="button"
+                        className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 transition hover:border-blue-500 hover:text-blue-600"
+                        onClick={() => setPreviewEmployee(employee)}
+                      >
+                        Preview
+                      </button>
+                    </div>
                   </footer>
                 </article>
               ))}
@@ -223,6 +346,39 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
           )}
         </div>
       </section>
+
+      {isFormOpen && (
+        <EmployeeFormModal
+          mode={formMode}
+          initialValues={formInitialValues ?? undefined}
+          departmentOptions={departmentChoices}
+          onClose={handleCloseForm}
+          onSubmit={handleSubmitForm}
+        />
+      )}
+
+      {previewEmployee && (
+        <EmployeePreviewModal
+          employee={previewEmployee}
+          initials={getInitials(previewEmployee.fullName)}
+          statusColor={STATUS_COLORS[previewEmployee.status]}
+          onClose={() => setPreviewEmployee(null)}
+          onEdit={handleEditEmployee}
+          onViewDocuments={handleViewDocuments}
+          onViewHistory={handleViewHistory}
+        />
+      )}
+
+      {documentsEmployee && (
+        <EmployeeDocumentsModal
+          employee={documentsEmployee}
+          onClose={handleCloseDocuments}
+        />
+      )}
+
+      {historyEmployee && (
+        <EmployeeHistoryModal employee={historyEmployee} onClose={handleCloseHistory} />
+      )}
     </div>
   );
 }
